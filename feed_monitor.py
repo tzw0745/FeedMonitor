@@ -68,12 +68,13 @@ def insert_mysql(host, database, username, password,
         logger.warning('table {} not exists, try to create'
                        .format(table_name))
         sql = '''CREATE TABLE {} (
-            link      varchar(255) PRIMARY KEY NOT NULL,
-            pub_dt    datetime                 NOT NULL,
-            title     varchar(100)             NOT NULL,
+            id        int PRIMARY KEY AUTO_INCREMENT,
+            link      varchar(255) NOT NULL,
+            pub_dt    datetime     NOT NULL,
+            title     varchar(100) NOT NULL,
             summary   varchar(100),
             tags      varchar(50),
-            read_flag tinyint(1)               NOT NULL
+            read_flag tinyint(1)   NOT NULL
         )'''.format(table_name)
         cursor.execute(sql)
         conn.commit()
@@ -90,7 +91,7 @@ def insert_mysql(host, database, username, password,
             entity[1] = entity[1].strftime('%Y-%m-%d %H:%M:%S')
             values.append(entity)
 
-    sql = 'INSERT INTO {} VALUES (%s, %s, %s, %s, %s, FALSE)' \
+    sql = 'INSERT INTO {} VALUES (NULL, %s, %s, %s, %s, %s, FALSE)' \
         .format(table_name)
     try:
         if not values:
