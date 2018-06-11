@@ -35,6 +35,14 @@ def load_config():
             cfg_map[section][option] = cfg_parser.get(section, option)
     # check config
     assert not set(cfg_map.keys()).difference(('MySQL', 'Email', 'Feed'))
+    assert not set(cfg_map['MySQL'].keys()).difference((
+        'host', 'database', 'charset', 'username', 'password'
+    ))
+    assert not set(cfg_map['Email'].keys()).difference((
+        'receiver', 'username', 'password'
+    ))
+    assert len(cfg_map['Feed'].keys()) > 0
+
     return cfg_map
 
 
