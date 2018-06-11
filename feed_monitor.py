@@ -129,7 +129,8 @@ def main():
                 entity['summary'],
                 ','.join(tag['term'] for tag in entity['tags'])
             ] for entity in feedparser.parse(content).entries]
-            logger.info('newest one: {}'.format(entries[0][2]))
+            entries = list(reversed(entries))
+            logger.info('newest one: {}'.format(entries[-1][2]))
 
             _ = cfg_map['MySQL']
             insert_mysql(_['host'], _['database'], _['username'],
