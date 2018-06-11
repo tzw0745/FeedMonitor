@@ -134,5 +134,10 @@ if __name__ == '__main__':
         print('\nall done')
     except Exception as e:
         print(''.join([str(e), traceback.format_exc()]))
+        if 'Email' in cfg_map:
+            _ = cfg_map['Email']
+            send_mail(_['receiver'], 'Feed Monitor Down',
+                      traceback.format_exc(),
+                      _['username'], _['password'])
     finally:
         print(time.asctime().rjust(80, '-'))
