@@ -111,8 +111,8 @@ def insert_mysql(host, database, username, password,
 
 def main():
     global args, cfg_map, logger
-    logger.info('load config: MySQL://{0[username]}@{0[host]}:'
-                '3306/{0[database]}'.format(cfg_map['MySQL']))
+    logger.warning('load config: MySQL://{0[username]}@{0[host]}:'
+                   '3306/{0[database]}'.format(cfg_map['MySQL']))
 
     while True:
         for feed in sorted(cfg_map['Feeds'].keys()):
