@@ -68,42 +68,37 @@ def insert_mysql(host, database, username, password,
         logger.warning('table {} not exists, try to create'
                        .format(table_name))
         sql = '''CREATE TABLE {} (
-            id        int PRIMARY KEY AUTO_INCREMENT,
-            link      varchar(255) NOT NULL,
-            pub_dt    datetime     NOT NULL,
-            title     varchar(100) NOT NULL,
-            summary   varchar(100),
-            tags      varchar(50),
-            read_flag tinyint(1)   NOT NULL
+            id        INT AUTO_INCREMENT,
+            link      VARCHAR(255) NOT NULL,
+            pub_dt    DATETIME     NOT NULL,
+            title     VARCHAR(100) NOT NULL,
+            summary   VARCHAR(100) NULL,
+            tags      VARCHAR(50)  NULL,
+            read_flag TINYINT(1)   NOT NULL,
+            PRIMARY KEY (id, link)
         )'''.format(table_name)
         cursor.execute(sql)
         conn.commit()
 
-    # filter with last published datetime
-    sql = 'SELECT pub_dt FROM {} ORDER BY pub_dt DESC LIMIT 1' \
-        .format(table_name)
+    sql = 'SELECT link FROM {} WHERE link in {}'.format(
+        table_name, tuple(entity[0] for entity in entries))
     cursor.execute(sql)
-    result = cursor.fetchall()
-    last_pub_dt = result[0][0] if result else None
-    values = []
-    for entity in entries:
-        if not last_pub_dt or last_pub_dt < entity[1]:
-            entity[1] = entity[1].strftime('%Y-%m-%d %H:%M:%S')
-            values.append(entity)
+    exists_links = tuple(x[0] for x in cursor.fetchall())
+    entries = list(filter(lambda x: x[0] not in exists_links, entries))
 
     sql = 'INSERT INTO {} VALUES (NULL, %s, %s, %s, %s, %s, FALSE)' \
         .format(table_name)
     try:
-        if not values:
+        if not entries:
             return
-        cursor.executemany(sql, values)
+        cursor.executemany(sql, entries)
         conn.commit()
         logger.warning('insert {} entries to {}'
-                       .format(len(values), table_name))
+                       .format(len(entries), table_name))
     except Exception as e:
         conn.rollback()
         logger.critical('insert {} entries to {} fail: {}'
-                        .format(len(values), table_name, str(e)))
+                        .format(len(entries), table_name, str(e)))
         raise e
     finally:
         conn.close()
@@ -124,7 +119,7 @@ def main():
 
             entries = [[
                 entity['link'],
-                datetime.fromtimestamp(time.mktime(entity['updated_parsed'])),
+                entity['updated_parsed'],
                 entity['title'],
                 entity['summary'],
                 ','.join(tag['term'] for tag in entity['tags'])
