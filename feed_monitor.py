@@ -75,16 +75,19 @@ def insert_mysql(host, database, username, password,
             summary   VARCHAR(100) NULL,
             tags      VARCHAR(50)  NULL,
             read_flag TINYINT(1)   NOT NULL,
-            PRIMARY KEY (id, link)
+            UNIQUE (link),
+            PRIMARY KEY (id)
         )'''.format(table_name)
         cursor.execute(sql)
-        conn.commit()
 
-    sql = 'SELECT link FROM {} WHERE link in {}'.format(
+    # filter entries with link and published time
+    sql = 'SELECT link, pub_dt FROM {} WHERE link in {}'.format(
         table_name, tuple(entity[0] for entity in entries))
     cursor.execute(sql)
-    exists_links = tuple(x[0] for x in cursor.fetchall())
-    entries = list(filter(lambda x: x[0] not in exists_links, entries))
+    exists = {link: pub_dt for link, pub_dt in cursor.fetchall()}
+    entries = list(filter(
+        lambda x: x[0] not in exists.keys() or datetime.fromtimestamp(
+            time.mktime(x[1])) > exists[x[0]], entries))
 
     sql = 'INSERT INTO {} VALUES (NULL, %s, %s, %s, %s, %s, FALSE)' \
         .format(table_name)
@@ -95,11 +98,11 @@ def insert_mysql(host, database, username, password,
         conn.commit()
         logger.warning('insert {} entries to {}'
                        .format(len(entries), table_name))
-    except Exception as e:
+    except Exception:
         conn.rollback()
-        logger.critical('insert {} entries to {} fail: {}'
-                        .format(len(entries), table_name, str(e)))
-        raise e
+        logger.critical('insert {} entries to {} fail'
+                        .format(len(entries), table_name))
+        raise
     finally:
         conn.close()
         logger.info('MySQL connection close')
@@ -167,8 +170,8 @@ logger.setLevel(level)
 # region load config file
 try:
     cfg_map = load_config(args.config_file)
-except Exception as e:
-    logger.critical('load config file fail: ' + str(e))
+except Exception:
+    logger.critical('load config file fail')
     raise
 
 # endregion
