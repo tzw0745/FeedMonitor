@@ -89,7 +89,7 @@ def insert_mysql(host, database, username, password,
         lambda x: x[0] not in exists.keys() or datetime.fromtimestamp(
             time.mktime(x[1])) > exists[x[0]], entries))
 
-    sql = 'INSERT INTO {} VALUES (NULL, %s, %s, %s, %s, %s, FALSE)' \
+    sql = 'REPLACE INTO {} VALUES (NULL, %s, %s, %s, %s, %s, FALSE)' \
         .format(table_name)
     try:
         if not entries:
