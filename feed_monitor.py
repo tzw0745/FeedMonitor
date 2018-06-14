@@ -108,6 +108,33 @@ def insert_mysql(host, database, username, password,
         logger.info('MySQL connection close')
 
 
+def func_retry(func, *func_args, accept_error=Exception,
+               retry=3, interval=1, fallback=print):
+    """
+    重复执行函数，直到函数执行成功或达到重试次数上限
+    :param func: 待执行函数
+    :param func_args: 待执行函数接收参数
+    :param accept_error: 可接受的函数错误
+    :param retry: 重试次数上限
+    :param interval: 函数调用失败时的延时，单位为秒
+    :param fallback: 当达到重复次数上限时调用的函数
+    :return: 函数成功执行结果
+    """
+    if retry <= 0:
+        raise ValueError('arg "retry" should greater than 0')
+    if interval <= -1:
+        raise ValueError('arg "interval" should greater than -1')
+
+    error_backup = None
+    for i in range(retry):
+        try:
+            return func(*func_args)
+        except accept_error as _accept_error:
+            error_backup = _accept_error
+    else:
+        fallback(error_backup)
+
+
 def main():
     global args, cfg_map, logger
     logger.warning('load config: MySQL://{0[username]}@{0[host]}:'
@@ -115,10 +142,25 @@ def main():
 
     while True:
         for feed in sorted(cfg_map['Feeds'].keys()):
+            log_str = 'get response from {}'.format(feed)
             url = cfg_map['Feeds'][feed]
-            content = requests.get(url).content
-            logger.info('get response from {}, content length: {}'
-                        .format(feed, len(content)))
+            response = func_retry(
+                requests.get, url, accept_error=requests.RequestException,
+                fallback=lambda s: logger.error(log_str + 'fail: ' + s)
+            )
+            if not response:
+                continue
+            if response.status_code != 200:
+                logger.error('{} is unavailable now'.format(feed))
+                continue
+            content = response.content
+            logger.info('{}, content length: {}'
+                        .format(log_str, len(content)))
+
+            feed_parser = feedparser.parse(content)
+            if not feed_parser.entries:
+                logger.error('empty entries')
+                continue
 
             entries = [[
                 entity['link'],
@@ -126,7 +168,7 @@ def main():
                 entity['title'],
                 entity['summary'],
                 ','.join(tag['term'] for tag in entity['tags'])
-            ] for entity in feedparser.parse(content).entries]
+            ] for entity in feed_parser.entries]
             entries = list(reversed(entries))
             logger.info('newest one: {}'.format(entries[-1][2]))
 
@@ -173,7 +215,6 @@ try:
 except Exception:
     logger.critical('load config file fail')
     raise
-
 # endregion
 
 
@@ -181,8 +222,9 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        logger.critical(''.join([str(e), traceback.format_exc()]))
-        send_mail(cfg_map['Email']['receiver'],
-                  'Feed Monitor Down', traceback.format_exc(),
-                  cfg_map['Email']['username'], cfg_map['Email']['password'])
+        logger.critical('\n'.join([str(e), traceback.format_exc()]))
+        if 'Email' in cfg_map.keys():
+            _ = cfg_map['Email']
+            send_mail(_['receiver'], 'Feed Monitor Down',
+                      traceback.format_exc(), _['username'], _['password'])
         raise
