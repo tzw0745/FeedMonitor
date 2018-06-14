@@ -159,7 +159,6 @@ def main():
 
             feed_parser = feedparser.parse(content)
             if not feed_parser.entries:
-                logger.error('empty entries')
                 continue
 
             entries = [[
