@@ -139,15 +139,62 @@ def is_colorful_img(img):
     return False
 
 
-def func_timer(func, *params, repeat=1):
+def func_timer(func, repeat=1, **params):
     """
     获取目标函数运行时间
     :param func: 目标函数
-    :param params: 目标函数所需参数
     :param repeat: 目标函数重复运行次数
-    :return: 目标函数重复运行repeat次所需要的时长，单位为秒
+    :param params: 目标函数所需参数
+    :return: 目标函数重复运行repeat次评价所需要的时长，单位为秒
     """
     import timeit
     import functools
 
-    return timeit.timeit(functools.partial(func, *params), number=repeat)
+    return timeit.timeit(functools.partial(
+        func, **params), number=repeat) / repeat
+
+
+def func_retry(func, accept_error=Exception, retry=3,
+               interval=1, fallback=print, **params):
+    """
+    重复执行函数，直到函数执行成功或达到重试次数上限
+    :param func: 待执行函数
+    :param accept_error: 可接受的函数错误
+    :param retry: 重试次数上限
+    :param interval: 函数调用失败时的延时，单位为秒
+    :param fallback: 当达到重试上限时调用的函数
+    :param params: 待执行函数接收参数
+    :return: 函数成功执行结果
+    """
+    if retry <= 0:
+        raise ValueError('arg "retry" should greater than 0')
+    if interval <= -1:
+        raise ValueError('arg "interval" should greater than -1')
+
+    error_backup = None
+    for i in range(retry):
+        try:
+            return func(**params)
+        except accept_error as _accept_error:
+            error_backup = _accept_error
+    else:
+        fallback(error_backup)
+
+
+class CONST:
+    """
+    常量类
+    """
+
+    class ConstError(TypeError):
+        pass
+
+    class ConstCaseError(ConstError):
+        pass
+
+    def __setattr__(self, name, value):
+        if name in self.__dict__:
+            raise self.ConstError("can't change const %s" % name)
+        if not name.isupper():
+            raise self.ConstCaseError('const name "%s" is not all uppercase' % name)
+        self.__dict__[name] = value

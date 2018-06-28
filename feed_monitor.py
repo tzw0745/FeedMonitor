@@ -14,7 +14,7 @@ import pymysql
 import requests
 import feedparser
 
-from utils import send_mail
+from utils import send_mail, func_retry
 
 
 def load_config(cfg_path):
@@ -108,33 +108,6 @@ def insert_mysql(host, database, username, password,
         logger.info('MySQL connection close')
 
 
-def func_retry(func, *func_args, accept_error=Exception,
-               retry=3, interval=1, fallback=print):
-    """
-    重复执行函数，直到函数执行成功或达到重试次数上限
-    :param func: 待执行函数
-    :param func_args: 待执行函数接收参数
-    :param accept_error: 可接受的函数错误
-    :param retry: 重试次数上限
-    :param interval: 函数调用失败时的延时，单位为秒
-    :param fallback: 当达到重复次数上限时调用的函数
-    :return: 函数成功执行结果
-    """
-    if retry <= 0:
-        raise ValueError('arg "retry" should greater than 0')
-    if interval <= -1:
-        raise ValueError('arg "interval" should greater than -1')
-
-    error_backup = None
-    for i in range(retry):
-        try:
-            return func(*func_args)
-        except accept_error as _accept_error:
-            error_backup = _accept_error
-    else:
-        fallback(error_backup)
-
-
 def main():
     global args, cfg_map, logger
     logger.warning('load config: MySQL://{0[username]}@{0[host]}:'
@@ -145,7 +118,7 @@ def main():
             log_str = 'get response from {}'.format(feed)
             url = cfg_map['Feeds'][feed]
             response = func_retry(
-                requests.get, url, accept_error=requests.RequestException,
+                requests.get, url=url, accept_error=requests.RequestException,
                 fallback=lambda s: logger.error(log_str + 'fail: ' + s)
             )
             if not response:
