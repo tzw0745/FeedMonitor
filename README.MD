@@ -8,7 +8,7 @@
 1. requirements
   [requests](http://docs.python-requests.org/en/master/), [feedparser](https://pythonhosted.org/feedparser/), [pymysql](https://github.com/PyMySQL/PyMySQL)
 2. custom module
-  [utils.py](https://github.com/tzw0745/FeedMonitor/blob/master/utils.py) `send_email()`(send notice email when service is down, use SMTP protocol)
+  [utils.py](https://github.com/tzw0745/FeedMonitor/blob/master/utils.py) `send_email()`(send notice email when service is down, use SMTP protocol), `func_retry()`(repeat function until succeed or reaches the maximum retries)
 3. create config file
   ```ini
   [MySQL]
