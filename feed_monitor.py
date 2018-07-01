@@ -119,7 +119,7 @@ def main():
             url = cfg_map['Feeds'][feed]
             response = func_retry(
                 requests.get, url=url, accept_error=requests.RequestException,
-                fallback=lambda s: logger.error(log_str + 'fail: ' + s)
+                fallback=lambda _: logger.error(log_str + 'fail: ' + str(_))
             )
             if not response:
                 continue
