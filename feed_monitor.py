@@ -118,10 +118,11 @@ def main():
             log_str = 'get response from {}'.format(feed)
             url = cfg_map['Feeds'][feed]
             response = func_retry(
-                requests.get, url=url, accept_error=requests.RequestException,
-                fallback=lambda _: logger.error(log_str + 'fail: ' + str(_))
+                requests.get, url=url, timeout=3, accept_error=requests.RequestException,
+                fallback=lambda s: logger.error(log_str + 'fail: ' + s)
             )
             if not response:
+                logger.error('{} return empty response'.format(feed))
                 continue
             if response.status_code != 200:
                 logger.error('{} is unavailable now'.format(feed))
