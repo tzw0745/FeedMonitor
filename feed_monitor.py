@@ -114,18 +114,17 @@ def main():
                    '3306/{0[database]}'.format(cfg_map['MySQL']))
 
     while True:
-        for feed in sorted(cfg_map['Feeds'].keys()):
-            log_str = 'get response from {}'.format(feed)
-            url = cfg_map['Feeds'][feed]
+        for feed_name in sorted(cfg_map['Feeds'].keys()):
+            log_str = 'get response from {}'.format(feed_name)
+            url = cfg_map['Feeds'][feed_name]
             response = func_retry(
                 requests.get, url=url, timeout=3, accept_error=requests.RequestException,
-                fallback=lambda _: logger.error(log_str + 'fail: ' + str(_))
+                fallback=lambda _: logger.error(log_str + ' fail: ' + str(_))
             )
             if not response:
-                logger.error('{} return empty response'.format(feed))
                 continue
             if response.status_code != 200:
-                logger.error('{} is unavailable now'.format(feed))
+                logger.error('{} is unavailable now'.format(feed_name))
                 continue
             content = response.content
             logger.info('{}, content length: {}'
@@ -133,6 +132,7 @@ def main():
 
             feed_parser = feedparser.parse(content)
             if not feed_parser.entries:
+                logger.error('{} return empty entries'.format(feed_name))
                 continue
 
             entries = [[
@@ -147,7 +147,7 @@ def main():
 
             _ = cfg_map['MySQL']
             insert_mysql(_['host'], _['database'], _['username'],
-                         _['password'], feed.upper(), entries, _['charset'])
+                         _['password'], feed_name.upper(), entries, _['charset'])
 
         time.sleep(int(args.interval) * 60)
 
