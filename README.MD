@@ -6,7 +6,7 @@
 
 ## How To Use
 1. requirements
-  [requests](http://docs.python-requests.org/en/master/), [feedparser](https://pythonhosted.org/feedparser/), [pymysql](https://github.com/PyMySQL/PyMySQL)
+  [requests](http://docs.python-requests.org/en/master/), [feedparser](https://pythonhosted.org/feedparser/), [SQLAlchemy](http://www.sqlalchemy.org/), [MySQLClient](https://pypi.org/project/mysqlclient/)
 2. custom module
   [utils.py](https://github.com/tzw0745/FeedMonitor/blob/master/utils.py) `send_email()`(send notice email when service is down, use SMTP protocol), `func_retry()`(repeat function until succeed or reaches the maximum retries)
 3. create config file
@@ -38,15 +38,16 @@
 1. table design
   ```sql
   CREATE TABLE FEED_NAME_UPPER (
-      id        INT AUTO_INCREMENT,
-      link      VARCHAR(255) NOT NULL,
-      pub_dt    DATETIME     NOT NULL,
-      title     VARCHAR(100) NOT NULL,
-      summary   VARCHAR(100) NULL,
-      tags      VARCHAR(50)  NULL,
-      read_flag TINYINT(1)   NOT NULL,
-      UNIQUE (link),
-      PRIMARY KEY (id)
+	  id INTEGER NOT NULL AUTO_INCREMENT, 
+	  link VARCHAR(255), 
+	  pub_dt DATETIME, 
+	  title VARCHAR(100), 
+	  summary VARCHAR(100) NULL, 
+	  tags VARCHAR(100) NULL, 
+	  read_flag BOOL, 
+	  PRIMARY KEY (id), 
+	  UNIQUE (link), 
+	  CHECK (read_flag IN (0, 1))
   )
   ```
 2. xml data extract
