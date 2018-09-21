@@ -60,12 +60,12 @@ def insert_mysql(engine_map: dict, table_name: str, feed_info_map: dict):
     class Template(base):
         __tablename__ = table_name
         id = Column(Integer, primary_key=True, autoincrement=True)
-        link = Column(String(255), unique=True)
-        pub_dt = Column(DateTime)
-        title = Column(String(100))
+        link = Column(String(255), unique=True, nullable=False)
+        pub_dt = Column(DateTime, nullable=False)
+        title = Column(String(100), nullable=False)
         summary = Column(String(100), nullable=True)
         tags = Column(String(100), nullable=True)
-        read_flag = Column(Boolean, default=False)
+        read_flag = Column(Boolean, default=False, nullable=False)
 
     base.metadata.create_all(engine)
     session = sessionmaker(bind=engine)()
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         main()
     except Exception as e:
         logger.critical('\n'.join([str(e), traceback.format_exc()]))
-        if 'Email' in cfg_map.keys():
+        if 'Email' in cfg_map.keys() and False:
             _ = cfg_map['Email']
             send_mail(_['receiver'], 'Feed Monitor Down',
                       traceback.format_exc(), _['username'], _['password'])
