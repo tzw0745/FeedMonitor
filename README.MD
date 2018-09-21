@@ -38,15 +38,16 @@
 1. table design
   ```sql
   CREATE TABLE FEED_NAME_UPPER (
-      id        INT AUTO_INCREMENT,
-      link      VARCHAR(255) NOT NULL,
-      pub_dt    DATETIME     NOT NULL,
-      title     VARCHAR(100) NOT NULL,
-      summary   VARCHAR(100) NULL,
-      tags      VARCHAR(50)  NULL,
-      read_flag TINYINT(1)   NOT NULL,
-      UNIQUE (link),
-      PRIMARY KEY (id)
+	  id INTEGER NOT NULL AUTO_INCREMENT, 
+	  link VARCHAR(255), 
+	  pub_dt DATETIME, 
+	  title VARCHAR(100), 
+	  summary VARCHAR(100) NULL, 
+	  tags VARCHAR(100) NULL, 
+	  read_flag BOOL, 
+	  PRIMARY KEY (id), 
+	  UNIQUE (link), 
+	  CHECK (read_flag IN (0, 1))
   )
   ```
 2. xml data extract
