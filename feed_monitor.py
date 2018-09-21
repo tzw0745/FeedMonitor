@@ -2,17 +2,20 @@
 """
 Created by tzw0745 at 2018/6/11.
 """
-import time
-import logging
 import argparse
+import logging
+import time
 import traceback
-from datetime import datetime
 from collections import defaultdict
 from configparser import ConfigParser
+from datetime import datetime
 
-import pymysql
-import requests
 import feedparser
+import requests
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy.engine.url import URL
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 from utils import send_mail, func_retry
 
@@ -42,76 +45,53 @@ def load_config(cfg_path):
     return _
 
 
-def insert_mysql(host, database, username, password,
-                 table_name, entries, charset='utf8'):
+def insert_mysql(engine_map: dict, table_name: str, feed_info_map: dict):
     """
     将多条feed数据插入至MySQL
-    :param host: MySQL主机位置
-    :param database: MySQL数据库名称
-    :param username: 用户名
-    :param password: 密码
-    :param table_name: 表名
-    :param entries: feed数据列表
-    :param charset: 数据库字符集，默认为utf8
+    :param engine_map: 数据库连接配置字典
+    :param table_name: 数据表名称
+    :param feed_info_map: feed数据字典
     :return: None
     """
     global logger
-    conn = pymysql.connect(host, username, password,
-                           database, charset=charset)
-    cursor = conn.cursor()
-    logger.info('MySQL connected')
+    engine = create_engine(URL(**engine_map))
+    base = declarative_base()
 
-    # create table
-    sql = 'SHOW TABLES LIKE "{}"'.format(table_name)
-    cursor.execute(sql)
-    if not cursor.fetchall():
-        logger.warning('table {} not exists, try to create'
-                       .format(table_name))
-        sql = '''CREATE TABLE {} (
-            id        INT AUTO_INCREMENT,
-            link      VARCHAR(255) NOT NULL,
-            pub_dt    DATETIME     NOT NULL,
-            title     VARCHAR(100) NOT NULL,
-            summary   VARCHAR(100) NULL,
-            tags      VARCHAR(50)  NULL,
-            read_flag TINYINT(1)   NOT NULL,
-            UNIQUE (link),
-            PRIMARY KEY (id)
-        )'''.format(table_name)
-        cursor.execute(sql)
+    class Template(base):
+        __tablename__ = table_name
+        id = Column(Integer, primary_key=True, autoincrement=True)
+        link = Column(String(255), unique=True)
+        pub_dt = Column(DateTime)
+        title = Column(String(100))
+        summary = Column(String(100), nullable=True)
+        tags = Column(String(100), nullable=True)
+        read_flag = Column(Boolean, default=False)
 
-    # filter entries with link and published time
-    sql = 'SELECT link, pub_dt FROM {} WHERE link in {}'.format(
-        table_name, tuple(entity[0] for entity in entries))
-    cursor.execute(sql)
-    exists = {link: pub_dt for link, pub_dt in cursor.fetchall()}
-    entries = list(filter(
-        lambda x: x[0] not in exists.keys() or datetime.fromtimestamp(
-            time.mktime(x[1])) > exists[x[0]], entries))
+    base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
 
-    sql = 'REPLACE INTO {} VALUES (NULL, %s, %s, %s, %s, %s, FALSE)' \
-        .format(table_name)
-    try:
-        if not entries:
-            return
-        cursor.executemany(sql, entries)
-        conn.commit()
-        logger.warning('insert {} entries to {}'
-                       .format(len(entries), table_name))
-    except Exception:
-        conn.rollback()
-        logger.critical('insert {} entries to {} fail'
-                        .format(len(entries), table_name))
-        raise
-    finally:
-        conn.close()
-        logger.info('MySQL connection close')
+    for entity in session.query(Template).filter(
+            Template.link.in_(feed_info_map.keys())):
+        if entity.pub_dt >= feed_info_map[entity.link]['pub_dt']:
+            del feed_info_map[entity.link]
+
+    for link, feed_info in feed_info_map.items():
+        new_entity = Template(**feed_info)
+        session.merge(new_entity)
+    session.commit()
 
 
 def main():
     global args, cfg_map, logger
-    logger.warning('load config: MySQL://{0[username]}@{0[host]}:'
-                   '3306/{0[database]}'.format(cfg_map['MySQL']))
+    logger.warning('config connection: mysql://{0[username]}:***@{0[host]}'
+                   '/{0[database]}'.format(cfg_map['MySQL']))
+
+    engine_map = dict(cfg_map['MySQL'])
+    engine_map.update({
+        'drivername': 'mysql',
+        'query': {'charset': engine_map['charset']}
+    })
+    del engine_map['charset']
 
     while True:
         for feed_name in sorted(cfg_map['Feeds'].keys()):
@@ -127,27 +107,26 @@ def main():
                 logger.error('{} is unavailable now'.format(feed_name))
                 continue
             content = response.content
-            logger.info('{}, content length: {}'
-                        .format(log_str, len(content)))
+            logger.info('{}, content length: {}'.format(log_str, len(content)))
 
             feed_parser = feedparser.parse(content)
             if not feed_parser.entries:
                 logger.error('{} return empty entries'.format(feed_name))
                 continue
+            logger.info('newest one: {}'.format(feed_parser.entries[0]['title']))
 
-            entries = [[
-                entity['link'],
-                entity['updated_parsed'],
-                entity['title'],
-                entity['summary'],
-                ','.join(tag['term'] for tag in entity['tags'])
-            ] for entity in feed_parser.entries]
-            entries = list(reversed(entries))
-            logger.info('newest one: {}'.format(entries[-1][2]))
-
-            _ = cfg_map['MySQL']
-            insert_mysql(_['host'], _['database'], _['username'],
-                         _['password'], feed_name.upper(), entries, _['charset'])
+            feed_info_map = {}
+            for entity in feed_parser.entries:
+                feed_info_map[entity['link']] = {
+                    'link': entity['link'],
+                    'pub_dt': datetime.fromtimestamp(
+                        time.mktime(entity['updated_parsed'])
+                    ),
+                    'title': entity['title'].strip(),
+                    'summary': entity['summary'].strip(),
+                    'tags': ','.join(tag['term'] for tag in entity['tags']).strip()
+                }
+            insert_mysql(engine_map, feed_name.upper(), feed_info_map)
 
         time.sleep(int(args.interval) * 60)
 
