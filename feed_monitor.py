@@ -75,7 +75,10 @@ def insert_mysql(engine_cfg: dict, table_name: str, feed_info_map: dict):
         if entity.pub_dt >= feed_info_map[entity.link]['pub_dt']:
             del feed_info_map[entity.link]
 
-    logger.warning('insert {} items into db'.format(len(feed_info_map.items())))
+    if not feed_info_map:
+        return
+    logger.warning('insert {} items into table {!r}'.format(
+        len(feed_info_map.keys()), table_name))
     for link, feed_info in feed_info_map.items():
         new_entity = Template(**feed_info)
         session.merge(new_entity)
