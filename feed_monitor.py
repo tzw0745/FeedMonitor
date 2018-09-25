@@ -45,16 +45,16 @@ def load_config(cfg_path):
     return _
 
 
-def insert_mysql(engine_map: dict, table_name: str, feed_info_map: dict):
+def insert_mysql(engine_cfg: dict, table_name: str, feed_info_map: dict):
     """
     将多条feed数据插入至MySQL
-    :param engine_map: 数据库连接配置字典
+    :param engine_cfg: 数据库连接配置字典
     :param table_name: 数据表名称
     :param feed_info_map: feed数据字典
     :return: None
     """
     global logger
-    engine = create_engine(URL(**engine_map))
+    engine = create_engine(URL(**engine_cfg))
     base = declarative_base()
 
     class Template(base):
@@ -75,6 +75,7 @@ def insert_mysql(engine_map: dict, table_name: str, feed_info_map: dict):
         if entity.pub_dt >= feed_info_map[entity.link]['pub_dt']:
             del feed_info_map[entity.link]
 
+    logger.warning('insert {} items into db'.format(len(feed_info_map.items())))
     for link, feed_info in feed_info_map.items():
         new_entity = Template(**feed_info)
         session.merge(new_entity)
