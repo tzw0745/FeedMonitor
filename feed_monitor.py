@@ -72,7 +72,9 @@ def insert_mysql(engine_cfg: dict, table_name: str, feed_info_map: dict):
 
     for entity in session.query(Template).filter(
             Template.link.in_(feed_info_map.keys())):
-        if entity.pub_dt >= feed_info_map[entity.link]['pub_dt']:
+        if entity.pub_dt < feed_info_map[entity.link]['pub_dt']:
+            session.delete(entity)
+        else:
             del feed_info_map[entity.link]
 
     if not feed_info_map:
