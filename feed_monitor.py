@@ -45,12 +45,12 @@ def load_config(cfg_path):
     return _
 
 
-def insert_mysql(engine_cfg: dict, table_name: str, feed_info_map: dict):
+def insert_mysql(engine_cfg: dict, table_name: str, articles_map: dict):
     """
     将多条feed数据插入至MySQL
     :param engine_cfg: 数据库连接配置字典
     :param table_name: 数据表名称
-    :param feed_info_map: feed数据字典
+    :param articles_map: 文章字典
     :return: None
     """
     global logger
@@ -71,16 +71,19 @@ def insert_mysql(engine_cfg: dict, table_name: str, feed_info_map: dict):
     session = sessionmaker(bind=engine)()
 
     for entity in session.query(Template).filter(
-            Template.link.in_(feed_info_map.keys())):
-        if entity.pub_dt >= feed_info_map[entity.link]['pub_dt']:
-            del feed_info_map[entity.link]
-
-    if not feed_info_map:
+            Template.link.in_(articles_map.keys())):
+        if entity.pub_dt < articles_map[entity.link]['pub_dt']:
+            session.delete(entity)
+        else:
+            del articles_map[entity.link]
+    if not articles_map:
         return
+
+    links = articles_map.keys()
     logger.warning('insert {} items into table {!r}'.format(
-        len(feed_info_map.keys()), table_name))
-    for link, feed_info in feed_info_map.items():
-        new_entity = Template(**feed_info)
+        len(links), table_name))
+    for link in sorted(links, key=lambda k: articles_map[k]['pub_dt']):
+        new_entity = Template(**articles_map[link])
         session.merge(new_entity)
     session.commit()
 
