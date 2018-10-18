@@ -26,7 +26,7 @@ def load_config(cfg_path):
     :param cfg_path: ini文件路径
     :return: 配置字典
     """
-    cfg_parser = ConfigParser()
+    cfg_parser = ConfigParser(strict=False, interpolation=None)
     cfg_parser.read(cfg_path)
 
     _ = defaultdict(dict)
@@ -101,9 +101,13 @@ def main():
         for feed_name in sorted(cfg_map['Feeds'].keys()):
             log_str = 'get response from {}'.format(feed_name)
             url = cfg_map['Feeds'][feed_name]
+            cookies_str = cfg_map.get('Cookies', {}).get(feed_name, None)
+            cookies = dict(kv.split('=', 1) for kv in cookies_str.split('; ')) \
+                if cookies_str else None
             response = func_retry(
                 requests.get, url=url, timeout=3, accept_error=requests.RequestException,
-                fallback=lambda _: logger.error(log_str + ' fail: ' + str(_))
+                fallback=lambda _: logger.error(log_str + ' fail: ' + str(_)),
+                cookies=cookies
             )
             if not response:
                 continue
