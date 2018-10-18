@@ -62,8 +62,8 @@ def insert_mysql(engine_cfg: dict, table_name: str, articles_map: dict):
         id = Column(Integer, primary_key=True, autoincrement=True)
         link = Column(String(255), unique=True, nullable=False)
         pub_dt = Column(DateTime, nullable=False)
-        title = Column(String(100), nullable=False)
-        summary = Column(String(100), nullable=True)
+        title = Column(String(255), nullable=False)
+        summary = Column(String(255), nullable=True)
         tags = Column(String(100), nullable=True)
         read_flag = Column(Boolean, default=False, nullable=False)
 
@@ -133,8 +133,8 @@ def main():
                     'pub_dt': datetime.fromtimestamp(
                         time.mktime(entity['updated_parsed'])
                     ),
-                    'title': entity['title'].strip(),
-                    'summary': entity['summary'].strip(),
+                    'title': entity['title'].strip()[:255],
+                    'summary': entity['summary'].strip()[:255],
                     'tags': ','.join(tag['term'] for tag in entity['tags']).strip()
                 }
             insert_mysql(engine_map, feed_name.upper(), feed_info_map)
