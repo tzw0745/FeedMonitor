@@ -101,6 +101,9 @@ def main():
     del engine_map['charset']
 
     while True:
+        headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                                 ' AppleWebKit/537.36 (KHTML, like Gecko) '
+                                 'Chrome/69.0.3497.100 Safari/537.36'}
         for feed_name in sorted(cfg_map['Feeds'].keys()):
             log_str = 'get response from {}'.format(feed_name)
             url = cfg_map['Feeds'][feed_name]
@@ -110,7 +113,7 @@ def main():
             response = func_retry(
                 requests.get, url=url, timeout=3, accept_error=requests.RequestException,
                 fallback=lambda _: logger.error(log_str + ' fail: ' + str(_)),
-                cookies=cookies
+                cookies=cookies, headers=headers
             )
             if not response:
                 continue
