@@ -86,12 +86,13 @@ def insert_mysql(engine_cfg: dict, table_name: str, articles_map: dict):
         new_entity = Template(**articles_map[link])
         session.merge(new_entity)
     session.commit()
+    engine.dispose()
 
 
 def main():
     global args, cfg_map, logger
-    logger.warning('config connection: mysql://{0[username]}:***@{0[host]}'
-                   '/{0[database]}'.format(cfg_map['MySQL']))
+    logger.info('config connection: mysql://{0[username]}:***@{0[host]}'
+                '/{0[database]}'.format(cfg_map['MySQL']))
 
     engine_map = dict(cfg_map['MySQL'])
     engine_map.update({
@@ -101,9 +102,11 @@ def main():
     del engine_map['charset']
 
     while True:
-        headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-                                 ' AppleWebKit/537.36 (KHTML, like Gecko) '
-                                 'Chrome/69.0.3497.100 Safari/537.36'}
+        headers = {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/72.0.3626.96 Safari/537.36'
+        }
         for feed_name in sorted(cfg_map['Feeds'].keys()):
             log_str = 'get response from {}'.format(feed_name)
             url = cfg_map['Feeds'][feed_name]
@@ -111,7 +114,7 @@ def main():
             cookies = dict(kv.split('=', 1) for kv in cookies_str.split('; ')) \
                 if cookies_str else None
             response = func_retry(
-                requests.get, url=url, timeout=3, accept_error=requests.RequestException,
+                requests.get, url=url, timeout=5, accept_error=requests.RequestException,
                 fallback=lambda _: logger.error(log_str + ' fail: ' + str(_)),
                 cookies=cookies, headers=headers
             )
@@ -136,13 +139,13 @@ def main():
                     'pub_dt': datetime.fromtimestamp(
                         time.mktime(entity['updated_parsed'])
                     ),
-                    'title': entity['title'].strip()[:255],
-                    'summary': entity['summary'].strip()[:255],
+                    'title': entity['title'].strip()[:100],
+                    'summary': entity['summary'].strip()[:100],
                     'tags': ','.join(tag['term'] for tag in entity['tags']).strip()
                 }
             insert_mysql(engine_map, feed_name.upper(), feed_info_map)
 
-        time.sleep(int(args.interval) * 60)
+        break
 
 
 # region arg parser
